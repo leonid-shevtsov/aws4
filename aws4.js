@@ -1,5 +1,4 @@
 var aws4 = exports,
-    url = require('url'),
     querystring = require('querystring'),
     lru = require('./lru'),
     sha256 = require('./sha256'),
@@ -18,15 +17,32 @@ if (process.browser) {
   function byteLength(content) {
     return new Blob(content).size
   }
+  function parseRequestURL(url) {
+    var parser = document.createElement('a');
+    parser.href = url;
+    return {
+      href: url,
+      protocol: parser.protocol,
+      hostname: parser.hostname,
+      host: parser.host,
+      port: parser.port,
+      path: parser.pathname + (parser.search||''),
+      pathname: parser.pathname,
+      search: parser.search,
+      query: parser.search && parser.search.substr(1),
+      hash: parser.hash
+    }
+  };
 } else {
-  var byteLength = Buffer.byteLength
+  var byteLength = Buffer.byteLength;
+  var parseRequestURL = require('url').parse;
 }
 
 // request: { path | body, [host], [method], [headers], [service], [region] }
 // credentials: { accessKeyId, secretAccessKey, [sessionToken] }
 function RequestSigner(request, credentials) {
 
-  if (typeof request === 'string') request = url.parse(request)
+  if (typeof request === 'string') request = parseRequestURL(request)
 
   var headers = request.headers = (request.headers || {}),
       hostParts = this.matchHost(request.hostname || request.host || headers.Host || headers.host)
