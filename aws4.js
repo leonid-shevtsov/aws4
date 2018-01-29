@@ -14,6 +14,14 @@ function encodeRfc3986(urlEncodedString) {
   })
 }
 
+if (process.browser) {
+  function byteLength(content) {
+    return new Blob(content).size
+  }
+} else {
+  var byteLength = Buffer.byteLength
+}
+
 // request: { path | body, [host], [method], [headers], [service], [region] }
 // credentials: { accessKeyId, secretAccessKey, [sessionToken] }
 function RequestSigner(request, credentials) {
@@ -108,7 +116,7 @@ RequestSigner.prototype.prepareRequest = function() {
         headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=utf-8'
 
       if (request.body && !headers['Content-Length'] && !headers['content-length'])
-        headers['Content-Length'] = Buffer.byteLength(request.body)
+        headers['Content-Length'] = byteLength(request.body)
 
       if (this.credentials.sessionToken && !headers['X-Amz-Security-Token'] && !headers['x-amz-security-token'])
         headers['X-Amz-Security-Token'] = this.credentials.sessionToken
