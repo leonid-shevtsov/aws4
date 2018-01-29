@@ -1,19 +1,11 @@
 var aws4 = exports,
     url = require('url'),
     querystring = require('querystring'),
-    crypto = require('crypto'),
     lru = require('./lru'),
+    sha256 = require('./sha256'),
     credentialsCache = lru(1000)
 
 // http://docs.amazonwebservices.com/general/latest/gr/signature-version-4.html
-
-function hmac(key, string, encoding) {
-  return crypto.createHmac('sha256', key).update(string, 'utf8').digest(encoding)
-}
-
-function hash(string, encoding) {
-  return crypto.createHash('sha256').update(string, 'utf8').digest(encoding)
-}
 
 // This function assumes the string has already been percent encoded
 function encodeRfc3986(urlEncodedString) {
@@ -122,7 +114,7 @@ RequestSigner.prototype.prepareRequest = function() {
         headers['X-Amz-Security-Token'] = this.credentials.sessionToken
 
       if (this.service === 's3' && !headers['X-Amz-Content-Sha256'] && !headers['x-amz-content-sha256'])
-        headers['X-Amz-Content-Sha256'] = hash(this.request.body || '', 'hex')
+        headers['X-Amz-Content-Sha256'] = sha256.hash(this.request.body || '', 'hex')
 
       if (headers['X-Amz-Date'] || headers['x-amz-date'])
         this.datetime = headers['X-Amz-Date'] || headers['x-amz-date']
@@ -179,13 +171,13 @@ RequestSigner.prototype.signature = function() {
       cacheKey = [this.credentials.secretAccessKey, date, this.region, this.service].join(),
       kDate, kRegion, kService, kCredentials = credentialsCache.get(cacheKey)
   if (!kCredentials) {
-    kDate = hmac('AWS4' + this.credentials.secretAccessKey, date)
-    kRegion = hmac(kDate, this.region)
-    kService = hmac(kRegion, this.service)
-    kCredentials = hmac(kService, 'aws4_request')
+    kDate = sha256.hmac('AWS4' + this.credentials.secretAccessKey, date)
+    kRegion = sha256.hmac(kDate, this.region)
+    kService = sha256.hmac(kRegion, this.service)
+    kCredentials = sha256.hmac(kService, 'aws4_request')
     credentialsCache.set(cacheKey, kCredentials)
   }
-  return hmac(kCredentials, this.stringToSign(), 'hex')
+  return sha256.hmac(kCredentials, this.stringToSign(), 'hex')
 }
 
 RequestSigner.prototype.stringToSign = function() {
@@ -193,7 +185,7 @@ RequestSigner.prototype.stringToSign = function() {
     'AWS4-HMAC-SHA256',
     this.getDateTime(),
     this.credentialString(),
-    hash(this.canonicalString(), 'hex'),
+    sha256.hash(this.canonicalString(), 'hex'),
   ].join('\n')
 }
 
@@ -216,7 +208,7 @@ RequestSigner.prototype.canonicalString = function() {
     bodyHash = ''
   } else {
     bodyHash = headers['X-Amz-Content-Sha256'] || headers['x-amz-content-sha256'] ||
-      hash(this.request.body || '', 'hex')
+      sha256.hash(this.request.body || '', 'hex')
   }
 
   if (query) {
