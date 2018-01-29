@@ -15,7 +15,7 @@ function encodeRfc3986(urlEncodedString) {
 
 if (process.browser) {
   function byteLength(content) {
-    return new Blob(content).size
+    return new Blob([content]).size
   }
   function parseRequestURL(url) {
     var parser = document.createElement('a');
